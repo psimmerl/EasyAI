@@ -1,0 +1,13 @@
+data/*
+venv/
+models/*
+logs/*
+**/__pycache__
+**/.ipynb_checkpoints
+.vscode/
+
+.pylintrc
+env.sh
+*.npy
+*.pyc
+*.png
