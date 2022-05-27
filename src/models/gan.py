@@ -14,7 +14,7 @@ class GenerativeAdversarialNetwork(tf.keras.Model):
   """Summary of class here."""
 
   def __init__(self, n_feats, **kwargs) -> None:
-    super().__init__()
+    super().__init__(**kwargs)
     default_kwargs = {
         'latent_dim': 128,
         'gen_layers': 4,
@@ -101,11 +101,10 @@ class GenerativeAdversarialNetwork(tf.keras.Model):
     default_kwargs = {
         'gradient_penalty_weight': 10,
         'gradient_penalty_form': 'normal',
-        'jit_compile' : False
     }
     kwargs = default_kwargs | kwargs
 
-    super().compile(jit_compile=kwargs['jit_compile'])
+    super().compile(**kwargs)
 
     self.penalty = None
     if isinstance(loss, WassersteinLoss) and kwargs['gradient_penalty_weight']:
@@ -193,8 +192,9 @@ class GANMonitor(tf.keras.callbacks.Callback):
               validation_data,
               batch_size=1024,
               #  log_dir: str='logs/',
-               freq: int=1) -> None:
-    super().__init__()
+              freq: int=1,
+              **kwargs) -> None:
+    super().__init__(**kwargs)
     # self.log_dir = log_dir.rstrip('/')
     self.training_data = training_data
     self.validation_data = validation_data
