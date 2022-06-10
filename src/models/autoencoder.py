@@ -67,8 +67,8 @@ class VariationalAutoEncoder(tf.keras.Model):
           kernel_initializer='he_normal',
       )(x if ilay else inputs_)
       # x = LeakyReLU(alpha=0.2)(x)
-      # x = BatchNormalization()(x)
-      x = LayerNormalization()(x)
+      x = BatchNormalization()(x)
+      # x = LayerNormalization()(x)
 
     if self.variational:
       z_mean = Dense(self.latent_dim, name='z_mean')(x)
@@ -124,7 +124,8 @@ class VariationalAutoEncoder(tf.keras.Model):
     self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
     self.total_loss_tracker.update_state(total_loss)
     self.reconstruction_loss_tracker.update_state(reconstruction_loss)
-    self.kl_loss_tracker.update_state(kl_loss/kl_weight)
+    # add small eps to avoid nan loss
+    self.kl_loss_tracker.update_state(kl_loss/(kl_weight+1e-8))
 
     return {
         'loss': self.total_loss_tracker.result(),

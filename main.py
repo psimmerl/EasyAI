@@ -9,6 +9,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 
 from tensorflow.keras.callbacks import TensorBoard, EarlyStopping, ModelCheckpoint
+from tensorflow.keras.optimizers import Adam
 
 from src.models.autoencoder import VariationalAutoEncoder
 from src.models.gan import GenerativeAdversarialNetwork, GANMonitor
@@ -22,14 +23,13 @@ PRO_MASS = 0.938272
 ELE_MASS = 0.000510999
 eps = 1e-8
 
-# feats = [a+b for a in ('e','kp','km') for b in ('x','y','z')]
+feats = [a+b for a in ('e','kp','km') for b in ('x','y','z')]
 # feats = [a+b for a in ('e','kp','km') for b in ('P','Theta','Phi')]
-feats = [a + b for a in ('e', 'kp', 'km') for b in ('Pt', 'Eta')]
-# feats += ['ekpAngle', 'ekmAngle', 'kpkmAngle', 'phim', 'mm2', 'q2']
+feats += [a + b for a in ('e', 'kp', 'km') for b in ('P', 'Theta', 'Phi', 'Pt', 'Eta')]
+feats += ['ekpAngle', 'ekmAngle', 'kpkmAngle', 'phim', 'mm2']#, 'q2']
 # feats += ['ekpAngle', 'ekmAngle', 'kpkmAngle', 'q2']  #, 'phim']
-feats += ['ekpAngle', 'ekmAngle', 'kpkmAngle', 'q2', 'xb', 't', 'w']
-# ssh -Y psimmerl@login.jlab.org
-# *S00ta&dScout17
+# feats += ['ekpAngle', 'ekmAngle', 'eprAngle',
+#           'kpkmAngle', 'kpprAngle', 'kmprAngle']
 
 def parse_data(fname):
   # np.random.seed(42)
@@ -56,22 +56,28 @@ def parse_data(fname):
   ele.SetXYZM(ex, ey, ez, ELE_MASS);
   kp.SetXYZM(kpx, kpy, kpz, KAON_MASS);
   km.SetXYZM(kmx, kmy, kmz, KAON_MASS);
+  auto pr = beam+targ-ele-kp-km;
 
   auto eE = ele.E(), eP = ele.P(), eTheta = ele.Theta(), ePhi = ele.Phi();
   auto kpE = kp.E(), kpP = kp.P(), kpTheta = kp.Theta(), kpPhi = kp.Phi();
   auto kmE = km.E(), kmP = km.P(), kmTheta = km.Theta(), kmPhi = km.Phi();
+  auto prE = pr.E(), prP = pr.P(), prTheta = pr.Theta(), prPhi = pr.Phi();
 
   auto ePt = ele.Pt(), eEta = ele.Eta();
   auto kpPt = kp.Pt(), kpEta = kp.Eta();
   auto kmPt = km.Pt(), kmEta = km.Eta();
+  auto prPt = pr.Pt(), prEta = pr.Eta();
 
   auto ekpAngle = ele.Angle(kp.Vect());
   auto ekmAngle = ele.Angle(km.Vect());
+  auto eprAngle = ele.Angle(pr.Vect());
   auto kpkmAngle = kp.Angle(km.Vect());
+  auto kpprAngle = kp.Angle(pr.Vect());
+  auto kmprAngle = km.Angle(pr.Vect());
 
-  auto phim = (kp+km).M(), mm2 = (beam+targ-ele-kp-km).M2();
+  auto phim = (kp+km).M(), mm2 = pr.M2();
 
-  auto q = beam-ele, eX = beam+targ-ele, pr = beam+targ-ele-kp-km;
+  auto q = beam-ele, eX = beam+targ-ele;
   auto q2 = -q.M2();
   auto xb = q2/(2*targ.M()*q.E());
   // auto t  = 2*targ.M()*(pr.E()-targ.M());
@@ -79,6 +85,8 @@ def parse_data(fname):
   auto nu = q2/(2*targ.M()*xb);
   auto y  = nu/beam.E();
   auto w  = eX.M();
+
+  auto lambdam = (beam+targ-ele-kp).M();
 
   //phim = TMath::Log(phim - 2*KAON_MASS + eps);
   return vector<double>{''' + ','.join(vals) + '};')
@@ -113,7 +121,7 @@ def parse_data(fname):
   trn, tst = train_test_split(
       data,
       random_state=42,
-      test_size=0.5)
+      test_size=10)#0.5)
       # train_size=100_000)
   print(trn.shape, tst.shape)
 
@@ -159,10 +167,10 @@ def train_gan(name, trn, tst, scaler, iterations=200_000, **kwargs):
 
   return gan
 
-
 def train_vae(name, trn, tst, scaler, iterations=200_000, **kwargs):
   vae = VariationalAutoEncoder(trn.shape[1], **kwargs)
   vae.compile(optimizer='adam')
+  # vae.compile(optimizer=Adam(learning_rate=0.0001, clipvalue=0.5))
 
   batch_size = 128
   if iterations < 1000:
@@ -197,8 +205,9 @@ def train_vae(name, trn, tst, scaler, iterations=200_000, **kwargs):
   return vae
 
 if __name__ == '__main__':
-  # train, test, sclr = parse_data('data/externel/eKpKm_fa2018_sp2019.root')
-  train, test, sclr = parse_data('data/externel/gen_rdf.root')
+  # train, test, sclr = parse_data('data/external/eKpKm_fa2018_sp2019.root')
+  # train, test, sclr = parse_data('data/external/gen_rdf.root')
+  train, test, sclr = parse_data('data/external/simu_eKpKm_fa2018.root')
   for i in range(train.shape[1]):
     if np.isnan(train[:, i]).any():
       print(f'Error with {i}')
@@ -206,7 +215,7 @@ if __name__ == '__main__':
 
 
   for vari in (True, False):
-    for ld in (6, 4, 2):
+    for ld in (4, 6, 2):
       name = f'{"v" if vari else ""}ae_LD{ld}'
 
       print(f'\nStaring {name}')
