@@ -59,15 +59,15 @@ class VariationalAutoEncoder(tf.keras.Model):
 
   def build_encoder(self):
     inputs_ = Input(shape=self.n_feats)
-    for ilay, units in enumerate(4*[128]):#[256, 128, 64, 32]):
+    for ilay, units in enumerate(4*[64]):#[256, 128, 64, 32]):
       x = Dense(
           units,
-          activation='relu',
-          # activation='linear,'
+          # activation='relu',
+          activation='linear',
           kernel_initializer='he_normal',
       )(x if ilay else inputs_)
-      # x = LeakyReLU(alpha=0.2)(x)
-      x = BatchNormalization()(x)
+      x = LeakyReLU(alpha=0.2)(x)
+      # x = BatchNormalization()(x)
       # x = LayerNormalization()(x)
 
     if self.variational:
@@ -83,16 +83,16 @@ class VariationalAutoEncoder(tf.keras.Model):
 
   def build_decoder(self):
     inputs_ = Input(shape=self.latent_dim)
-    for ilay, units in enumerate(4*[128]):#[32, 64, 128, 256]):
+    for ilay, units in enumerate(4*[64]):#[32, 64, 128, 256]):
       x = Dense(
           units,
-          activation='relu',
-          # activation='linear',
+          # activation='relu',
+          activation='linear',
           kernel_initializer='he_normal',
       )(x if ilay else inputs_)
-      # x = LeakyReLU(alpha=0.2)(x)
+      x = LeakyReLU(alpha=0.2)(x)
       # x = BatchNormalization()(x)
-      x = LayerNormalization()(x)
+      # x = LayerNormalization()(x)
 
     x = Dense(self.n_feats, activation='linear')(x)
 
@@ -104,7 +104,7 @@ class VariationalAutoEncoder(tf.keras.Model):
     # kl_weight = min(1, self.my_iter/200000)
     # kl_weight = 0
     # if tf.reduce_all(my_iter > 10_000):
-    kl_weight = tf.math.minimum(my_iter/300_000, 0.3)
+    kl_weight = tf.math.minimum(my_iter/20_000, 0.3)
 
     with tf.GradientTape() as tape:
       if self.variational:
